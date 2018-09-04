@@ -73,7 +73,7 @@ public class Main extends Application implements EventHandler<ActionEvent>
     private int totalSampleCount = 0;
     private int fixedSampleSize = 0;
     private int trackFixedSample = 0;
-    private int experimentCount = 0;
+    private int experimentCount = 1;
 
 
     public static void main(String[] args)
@@ -167,7 +167,8 @@ public class Main extends Application implements EventHandler<ActionEvent>
 
         write = false;
         objectList.clear();
-
+        String object = objTable.updateStatus(experimentCount);
+        objectTxt.setText(object);
         setupDataStream();
     }
 
@@ -178,14 +179,21 @@ public class Main extends Application implements EventHandler<ActionEvent>
                                     {
                                         if( write )
                                         {
-                                            if( (fixedSampleSize > 0 && trackFixedSample < fixedSampleSize) )
+                                            if( fixedSampleSize == 0 )
+                                            {
+                                                updateDataOnUI(s);
+                                            }
+                                            else if( (fixedSampleSize > 0 && trackFixedSample < fixedSampleSize) )
                                             {
                                                 trackFixedSample++;
                                                 updateDataOnUI(s);
                                             }
-                                            else if( fixedSampleSize == 0 )
+                                            else if(fixedSampleSize > 0 && trackFixedSample == fixedSampleSize)
                                             {
-                                                updateDataOnUI(s);
+                                                experimentCount++;
+                                                String object = objTable.updateStatus(experimentCount);
+                                                objectTxt.setText(object);
+                                                write = false;
                                             }
                                         }
                                     });
@@ -215,8 +223,7 @@ public class Main extends Application implements EventHandler<ActionEvent>
         if( event.getSource() == startBtn )
         {
             trackFixedSample = 0;
-            experimentCount++;
-            objTable.updateStatus(experimentCount);
+            objTable.updateCount(experimentCount);
             fixedSampleSize = fixSampleSizeChk.isSelected() ? Integer.parseInt(sampleSizeTxt.getText()) : 0;
             String obj = objectTxt.getText().trim();
             objectName = "," + obj;
@@ -228,6 +235,9 @@ public class Main extends Application implements EventHandler<ActionEvent>
         }
         else if( event.getSource() == stopBtn )
         {
+            experimentCount++;
+            String object = objTable.updateStatus(experimentCount);
+            objectTxt.setText(object);
             write = false;
         }
         else if( event.getSource() == writeToFileBtn )
@@ -249,9 +259,12 @@ public class Main extends Application implements EventHandler<ActionEvent>
             logsTxt.clear();
             fixSampleSizeChk.setSelected(false);
             sampleSizeTxt.setEditable(false);
+            sampleSizeTxt.setText("0");
             fixedSampleSize = 0;
             sampleCntAmtLbl.setText("0");
-            experimentCount = 0;
+            experimentCount = 1;
+            String object = objTable.clearTable();
+            objectTxt.setText(object);
         }
         else if( event.getSource() == fixSampleSizeChk )
         {

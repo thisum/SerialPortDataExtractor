@@ -133,5 +133,36 @@ public class SerialClass implements SerialPortEventListener
     public void setDataListener(DataListener dataListener)
     {
         this.dataListener = dataListener;
+        mockData();
+    }
+
+    private void mockData()
+    {
+        new Thread(new Runnable()
+        {
+            @Override
+            public void run()
+            {
+                try
+                {
+                    while(true)
+                    {
+                        try
+                        {
+                            dataListener.onDataAvailable("dafsdf as fsd fkasdnkf jlksad flksd lkfnaskd flkasn dlkfnskld flkas klf adsklf kl safkl sdlkf lksaf asd fasd fas dd");
+                            Thread.sleep(10);
+                        }
+                        catch( NullPointerException e )
+                        {
+
+                        }
+                    }
+                }
+                catch( InterruptedException e )
+                {
+                    e.printStackTrace();
+                }
+            }
+        }).start();
     }
 }
