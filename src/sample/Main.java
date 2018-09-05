@@ -75,6 +75,9 @@ public class Main extends Application implements EventHandler<ActionEvent>
     private int trackFixedSample = 0;
     private int experimentCount = 1;
 
+    private int totalPrintedLines = 0;
+    private List<StringBuffer> bufferList = new ArrayList<>();
+
 
     public static void main(String[] args)
     {
@@ -106,9 +109,10 @@ public class Main extends Application implements EventHandler<ActionEvent>
         gridPane = new GridPane();
 
         fixSampleSizeChk = new CheckBox("Fix Sample Size: ");
-        fixSampleSizeChk.setSelected(false);
+        fixSampleSizeChk.setSelected(true);
         sampleSizeTxt = new TextField();
-        sampleSizeTxt.setEditable(false);
+        sampleSizeTxt.setEditable(true);
+        sampleSizeTxt.setText("" + 100);
 
         logsTxt = new TextArea();
 
@@ -214,6 +218,12 @@ public class Main extends Application implements EventHandler<ActionEvent>
                           {
                               logsTxt.appendText(s + objectName + "\n");
                               sampleCntAmtLbl.setText("" + totalSampleCount);
+                              totalPrintedLines++;
+                              if(totalPrintedLines%5000 == 0)
+                              {
+                                  bufferList.add(new StringBuffer(logsTxt.getText()));
+                                  logsTxt.clear();
+                              }
                           });
     }
 
@@ -283,6 +293,18 @@ public class Main extends Application implements EventHandler<ActionEvent>
             fileWriter.write(HEADER_ATTRIBUTES);
             fileWriter.write(ATTRIBUTES_CLASS);
             fileWriter.write("\n\n@data\n");
+
+            bufferList.forEach(buffer -> {
+                try
+                {
+                    fileWriter.write(buffer.toString());
+                }
+                catch( IOException e )
+                {
+                    e.printStackTrace();
+                }
+            });
+            
             fileWriter.write(logsTxt.getText());
         }
         catch( IOException e )

@@ -133,7 +133,7 @@ public class SerialClass implements SerialPortEventListener
     public void setDataListener(DataListener dataListener)
     {
         this.dataListener = dataListener;
-        mockData();
+//        mockData();
     }
 
     private void mockData()
