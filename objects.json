@@ -1,24 +1,9 @@
 {
   "objects" : [
-    "flip_through_a_book",
-    "use_a_mouse",
-    "write_with_a_pen",
-    "write_with_a_pencil",
-    "close_a_bottle",
-    "open_a_bottle",
-    "carry_water_bottle",
-    "grab_water_bottle",
-    "grab_water_glass",
-    "grab_wine_glass",
-    "hold_mug_handle",
-    "grab_mug_handle",
-    "cut_with_a_knife",
-    "use_a_spoon",
-    "grab_workshop_door_lock",
-    "use_screw_driver",
-    "use_a_hammer",
-    "use_a_saw",
-    "use_a_bottle_sprayer",
-    "grab_emergency_door_lock"
+    "index_finger",
+    "middle_finger",
+    "two_fingers",
+    "cross_fingers",
+    "spread_fingers"
   ]
 }

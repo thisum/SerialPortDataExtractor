@@ -82,12 +82,13 @@ public class ObjTable
         return rowObj.getObject();
     }
 
-    public void updateCount(int i)
+    public void updateCount(int i, boolean increment)
     {
         int row = i % dataList.size();
         row = (row == 0) ? dataList.size()-1 : row-1;
         RowObj rowObj = dataList.get(row);
-        rowObj.setCount(rowObj.getCount()+1);
+
+        rowObj.setCount(increment ? rowObj.getCount()+1 : rowObj.getCount()-1);
     }
 
     public String clearTable()

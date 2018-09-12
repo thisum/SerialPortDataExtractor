@@ -21,24 +21,64 @@ public class Main extends Application implements EventHandler<ActionEvent>
 {
 
     private static final String HEADER_ATTRIBUTES = "@relation handgrasp_object_detection\n\n" +
-            "@attribute T_y real\n" +
-            "@attribute T_p real\n" +
-            "@attribute T_r real\n" +
-            "@attribute I_y real\n" +
-            "@attribute I_p real\n" +
-            "@attribute I_r real\n" +
-            "@attribute M_y real\n" +
-            "@attribute M_p real\n" +
-            "@attribute M_r real\n" +
-            "@attribute R_y real\n" +
-            "@attribute R_p real\n" +
-            "@attribute R_r real\n" +
-            "@attribute P_y real\n" +
-            "@attribute P_p real\n" +
-            "@attribute P_r real\n" +
-            "@attribute B_y real\n" +
-            "@attribute B_p real\n" +
-            "@attribute B_r real\n";
+//            "@attribute T_ax real\n" +
+//            "@attribute T_ay real\n" +
+//            "@attribute T_az real\n" +
+//            "@attribute T_gx real\n" +
+//            "@attribute T_gy real\n" +
+//            "@attribute T_gz real\n" +
+//            "@attribute T_mx real\n" +
+//            "@attribute T_my real\n" +
+//            "@attribute T_mz real\n" +
+//            "@attribute I_ax real\n" +
+//            "@attribute I_ay real\n" +
+//            "@attribute I_az real\n" +
+//            "@attribute I_gx real\n" +
+//            "@attribute I_gy real\n" +
+//            "@attribute I_gz real\n" +
+//            "@attribute I_mx real\n" +
+//            "@attribute I_my real\n" +
+//            "@attribute I_mz real\n" +
+//            "@attribute M_ax real\n" +
+//            "@attribute M_ay real\n" +
+//            "@attribute M_az real\n" +
+//            "@attribute M_gx real\n" +
+//            "@attribute M_gy real\n" +
+//            "@attribute M_gz real\n" +
+//            "@attribute M_mx real\n" +
+//            "@attribute M_my real\n" +
+//            "@attribute M_mz real\n" +
+//            "@attribute R_ax real\n" +
+//            "@attribute R_ay real\n" +
+//            "@attribute R_az real\n" +
+//            "@attribute R_gx real\n" +
+//            "@attribute R_gy real\n" +
+//            "@attribute R_gz real\n" +
+//            "@attribute R_mx real\n" +
+//            "@attribute R_my real\n" +
+//            "@attribute R_mz real\n" +
+//            "@attribute P_ax real\n" +
+//            "@attribute P_ay real\n" +
+//            "@attribute P_az real\n" +
+//            "@attribute P_gx real\n" +
+//            "@attribute P_gy real\n" +
+//            "@attribute P_gz real\n" +
+//            "@attribute P_mx real\n" +
+//            "@attribute P_my real\n" +
+//            "@attribute P_mz real\n" +
+//            "@attribute B_ax real\n" +
+//            "@attribute B_ay real\n" +
+//            "@attribute B_az real\n" +
+//            "@attribute B_gx real\n" +
+//            "@attribute B_gy real\n" +
+//            "@attribute B_gz real\n" +
+//            "@attribute B_mx real\n" +
+//            "@attribute B_my real\n" +
+//            "@attribute B_mz real\n";
+            "@attribute Q0 real\n" +
+            "@attribute Q1 real\n" +
+            "@attribute Q2 real\n" +
+            "@attribute Q3 real\n" ;
 
     private static String ATTRIBUTES_CLASS = "@attribute Class {";
 
@@ -51,6 +91,7 @@ public class Main extends Application implements EventHandler<ActionEvent>
     private Button writeToFileBtn;
     private Button closeBtn;
     private Button clearBtn;
+    private Button undoBtn;
 
     private CheckBox fixSampleSizeChk;
 
@@ -74,14 +115,19 @@ public class Main extends Application implements EventHandler<ActionEvent>
     private int fixedSampleSize = 0;
     private int trackFixedSample = 0;
     private int experimentCount = 1;
+    private boolean addToList = false;
 
     private int totalPrintedLines = 0;
     private List<StringBuffer> bufferList = new ArrayList<>();
 
-
     public static void main(String[] args)
     {
         launch(args);
+//        CSVProcessor csv_processor = new CSVProcessor();
+//        csv_processor.readFile();
+
+//        CSVWalkinProcessor processor = new CSVWalkinProcessor();
+//        processor.readFile();
     }
 
     @Override
@@ -95,6 +141,7 @@ public class Main extends Application implements EventHandler<ActionEvent>
         stopBtn = new Button("Stop");
         writeToFileBtn = new Button("Write To File");
         closeBtn = new Button("Close");
+        undoBtn = new Button("Undo");
 
         userNameLbl = new Label("User: ");
         userNameTxt = new TextField();
@@ -112,7 +159,7 @@ public class Main extends Application implements EventHandler<ActionEvent>
         fixSampleSizeChk.setSelected(true);
         sampleSizeTxt = new TextField();
         sampleSizeTxt.setEditable(true);
-        sampleSizeTxt.setText("" + 100);
+        sampleSizeTxt.setText("" + 50);
 
         logsTxt = new TextArea();
 
@@ -122,14 +169,15 @@ public class Main extends Application implements EventHandler<ActionEvent>
         closeBtn.setOnAction(this);
         clearBtn.setOnAction(this);
         fixSampleSizeChk.setOnAction(this);
+        undoBtn.setOnAction(this);
 
         gridTopPane = new GridPane();
         gridBottomPane = new GridPane();
 
         gridTopPane.add(userNameLbl, 0, 0, 1, 1);
-        gridTopPane.add(userNameTxt, 1, 0, 3, 1);
-        gridTopPane.add(fixSampleSizeChk, 4, 0, 1, 1);
-        gridTopPane.add(sampleSizeTxt, 5, 0, 1, 1);
+        gridTopPane.add(userNameTxt, 1, 0, 4, 1);
+        gridTopPane.add(fixSampleSizeChk, 5, 0, 1, 1);
+        gridTopPane.add(sampleSizeTxt, 6, 0, 1, 1);
 
         gridTopPane.add(objectLbl, 0, 1, 1, 1);
         gridTopPane.add(objectTxt, 1, 1, 1, 1);
@@ -137,6 +185,7 @@ public class Main extends Application implements EventHandler<ActionEvent>
         gridTopPane.add(stopBtn, 3, 1, 1, 1);
         gridTopPane.add(sampleCntLbl, 4, 1, 1, 1);
         gridTopPane.add(sampleCntAmtLbl, 5, 1, 1, 1);
+        gridTopPane.add(undoBtn, 6, 1, 1, 1);
 
         gridTopPane.setHgap(10);
         gridTopPane.setVgap(10);
@@ -216,13 +265,13 @@ public class Main extends Application implements EventHandler<ActionEvent>
         totalSampleCount++;
         Platform.runLater(() ->
                           {
-                              logsTxt.appendText(s + objectName + "\n");
+                              String line = s.replaceFirst(",", "");
+                              logsTxt.appendText(line + objectName + "\n");
                               sampleCntAmtLbl.setText("" + totalSampleCount);
                               totalPrintedLines++;
-                              if(totalPrintedLines%5000 == 0)
+                              if(totalPrintedLines%2000 == 0)
                               {
-                                  bufferList.add(new StringBuffer(logsTxt.getText()));
-                                  logsTxt.clear();
+                                   addToList = true;
                               }
                           });
     }
@@ -232,8 +281,15 @@ public class Main extends Application implements EventHandler<ActionEvent>
     {
         if( event.getSource() == startBtn )
         {
+            if(addToList)
+            {
+                bufferList.add(new StringBuffer(logsTxt.getText()));
+                logsTxt.clear();
+                addToList = false;
+            }
+
             trackFixedSample = 0;
-            objTable.updateCount(experimentCount);
+            objTable.updateCount(experimentCount, true);
             fixedSampleSize = fixSampleSizeChk.isSelected() ? Integer.parseInt(sampleSizeTxt.getText()) : 0;
             String obj = objectTxt.getText().trim();
             objectName = "," + obj;
@@ -264,6 +320,7 @@ public class Main extends Application implements EventHandler<ActionEvent>
             userNameTxt.clear();
             objectTxt.clear();
             objectList.clear();
+            ATTRIBUTES_CLASS = "@attribute Class {";
             sampleCntAmtLbl.setText("");
             totalSampleCount = 0;
             logsTxt.clear();
@@ -275,12 +332,20 @@ public class Main extends Application implements EventHandler<ActionEvent>
             experimentCount = 1;
             String object = objTable.clearTable();
             objectTxt.setText(object);
+            bufferList.clear();
         }
         else if( event.getSource() == fixSampleSizeChk )
         {
             sampleSizeTxt.setEditable(fixSampleSizeChk.isSelected());
             fixedSampleSize = 0;
             sampleSizeTxt.setText("" + 0);
+        }
+        else if(event.getSource() == undoBtn)
+        {
+            experimentCount--;
+            objTable.updateCount(experimentCount, false);
+            String object = objTable.updateStatus(experimentCount);
+            objectTxt.setText(object);
         }
     }
 
