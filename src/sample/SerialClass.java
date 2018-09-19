@@ -17,7 +17,7 @@ public class SerialClass implements SerialPortEventListener
     /**
      * The port we're normally going to use.
      */
-    private static final String PORT_NAMES[] = {"/dev/tty.usbmodem4869681"};
+    private static final String PORT_NAMES[] = {"/dev/tty.usbmodem4155741"};
     /**
      * A BufferedReader which will be fed by a InputStreamReader
      * converting the bytes into characters

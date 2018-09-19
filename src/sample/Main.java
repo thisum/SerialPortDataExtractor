@@ -128,6 +128,10 @@ public class Main extends Application implements EventHandler<ActionEvent>
 
 //        CSVWalkinProcessor processor = new CSVWalkinProcessor();
 //        processor.readFile();
+
+//        QuaternionConverter converter = new QuaternionConverter();
+//        converter.readFromCSV();
+
     }
 
     @Override
