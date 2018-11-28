@@ -1,4 +1,7 @@
-package sample;
+package com.thisum.math;
+
+import com.thisum.math.MadgwickQuaternionCalculator;
+import com.thisum.math.MovingAvgClass;
 
 import java.io.FileWriter;
 import java.io.IOException;
@@ -60,7 +63,7 @@ public class QuaternionConverter
     private float[][] magScale = {{0.96f, 1.07f, 0.98f}, {0.91f, 1.08f, 1.02f}, {0.91f, 1.06f, 1.04f}, {1.02f, 1.00f, 0.98f}, {1.11f, 0.95f, 0.95f}, {1.09f, 1.07f, 0.87f}};
     private float[] q;
     private float[][] quaternions = new float[6][4];
-    private MovingAvgClass []movingAvg = new MovingAvgClass[20];
+    private MovingAvgClass[]movingAvg = new MovingAvgClass[20];
     private float[] qtVals = {0.0f, 0.0f, 0.0f, 0.0f};
     private int p =0 ;
     private float avgVal = 0.0f;
@@ -181,8 +184,8 @@ public class QuaternionConverter
                                               mx *= magScale[i][0];
                                               my *= magScale[i][1];
                                               mz *= magScale[i][2];
-                                              q = calculator.calculateQuaternions(val[pos], val[pos+1], val[pos+2], val[pos+3], val[pos+4], val[pos+5], mx, my, mz);
-                                              quaternions[i] = new float[]{q[0], q[1], q[2], q[3]};
+//                                              q = calculator.calculateQuaternions(val[pos], val[pos+1], val[pos+2], val[pos+3], val[pos+4], val[pos+5], mx, my, mz);
+//                                              quaternions[i] = new float[]{q[0], q[1], q[2], q[3]};
                                           }
 
                                           //TODO to wirte the quaternion values directly to a file

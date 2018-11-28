@@ -1,9 +1,8 @@
 {
   "objects" : [
-    "index_finger",
-    "middle_finger",
-    "two_fingers",
-    "cross_fingers",
+    "index_up",
+    "index_front",
+    "pinch",
     "spread_fingers"
   ]
 }

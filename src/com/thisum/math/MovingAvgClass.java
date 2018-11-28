@@ -1,4 +1,4 @@
-package sample;
+package com.thisum.math;
 
 import java.util.Arrays;
 

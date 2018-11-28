@@ -1,25 +1,24 @@
-package sample;
+package com.thisum.readings;
 
-import javafx.application.Application;
+import com.thisum.DataListener;
+import com.thisum.SerialClass;
+import com.thisum.math.MadgwickQuaternionCalculator;
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
 import javafx.geometry.Insets;
-import javafx.scene.PerspectiveCamera;
-import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.layout.GridPane;
-import javafx.stage.Stage;
 
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.Writer;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
-public class Main extends Application implements EventHandler<ActionEvent>
+public class DataCollectionScreen extends GridPane implements EventHandler<ActionEvent>, DataListener
 {
-
     private static final String HEADER_ATTRIBUTES = "@relation handgrasp_object_detection\n\n" +
 //            "@attribute T_ax real\n" +
 //            "@attribute T_ay real\n" +
@@ -82,7 +81,6 @@ public class Main extends Application implements EventHandler<ActionEvent>
 
     private static String ATTRIBUTES_CLASS = "@attribute Class {";
 
-    private GridPane gridPane;
     private GridPane gridTopPane;
     private GridPane gridBottomPane;
 
@@ -92,6 +90,7 @@ public class Main extends Application implements EventHandler<ActionEvent>
     private Button closeBtn;
     private Button clearBtn;
     private Button undoBtn;
+    private Button graphButton;
 
     private CheckBox fixSampleSizeChk;
 
@@ -110,35 +109,31 @@ public class Main extends Application implements EventHandler<ActionEvent>
     private String objectName;
 
     private List<String> objectList = new ArrayList<>();
-    private SerialClass serialClass;
+    private SerialClass serialClass1;
     private int totalSampleCount = 0;
     private int fixedSampleSize = 0;
     private int trackFixedSample = 0;
     private int experimentCount = 1;
     private boolean addToList = false;
+    private GraphPopPanel graphPopPanel;
 
     private int totalPrintedLines = 0;
     private List<StringBuffer> bufferList = new ArrayList<>();
+    private double anglesAry[][] = new double[][]{{0,0,0}, {0,0,0}, {0,0,0}, {0,0,0}, {0,0,0}, {0,0,0}};
+    private MadgwickQuaternionCalculator calculators[] = new MadgwickQuaternionCalculator[6];
 
-    public static void main(String[] args)
+    public DataCollectionScreen(SerialClass serialClass1)
     {
-        launch(args);
-//        CSVProcessor csv_processor = new CSVProcessor();
-//        csv_processor.readFile();
-
-//        CSVWalkinProcessor processor = new CSVWalkinProcessor();
-//        processor.readFile();
-
-//        QuaternionConverter converter = new QuaternionConverter();
-//        converter.readFromCSV();
-
+        this.serialClass1 = serialClass1;
+        for(int i=0; i<6; i++)
+        {
+            calculators[i] = new MadgwickQuaternionCalculator();
+        }
+        setup();
     }
 
-    @Override
-    public void start(Stage primaryStage) throws Exception
+    private void setup()
     {
-        primaryStage.setTitle("Data Extractor");
-
         objTable = new ObjTable();
 
         startBtn = new Button("Start");
@@ -146,6 +141,7 @@ public class Main extends Application implements EventHandler<ActionEvent>
         writeToFileBtn = new Button("Write To File");
         closeBtn = new Button("Close");
         undoBtn = new Button("Undo");
+        graphButton = new Button("Show Graph");
 
         userNameLbl = new Label("User: ");
         userNameTxt = new TextField();
@@ -157,8 +153,6 @@ public class Main extends Application implements EventHandler<ActionEvent>
         sampleCntAmtLbl = new Label("0");
 
         clearBtn = new Button("Clear");
-        gridPane = new GridPane();
-
         fixSampleSizeChk = new CheckBox("Fix Sample Size: ");
         fixSampleSizeChk.setSelected(true);
         sampleSizeTxt = new TextField();
@@ -174,6 +168,7 @@ public class Main extends Application implements EventHandler<ActionEvent>
         clearBtn.setOnAction(this);
         fixSampleSizeChk.setOnAction(this);
         undoBtn.setOnAction(this);
+        graphButton.setOnAction(this);
 
         gridTopPane = new GridPane();
         gridBottomPane = new GridPane();
@@ -199,85 +194,28 @@ public class Main extends Application implements EventHandler<ActionEvent>
         gridBottomPane.add(writeToFileBtn, 0, 0);
         gridBottomPane.add(clearBtn, 1, 0);
         gridBottomPane.add(closeBtn, 2, 0);
+        gridBottomPane.add(graphButton, 3, 0);
 
-        gridPane.add(gridTopPane, 0, 0, 2,1);
-        gridPane.add(logsTxt, 0, 1);
-        gridPane.add(objTable.getTable(), 1, 1);
-        gridPane.add(gridBottomPane, 0, 3, 2, 1);
+        this.add(gridTopPane, 0, 0, 2,1);
+        this.add(logsTxt, 0, 1);
+        this.add(objTable.getTable(), 1, 1);
+        this.add(gridBottomPane, 0, 3, 2, 1);
 
-        gridPane.setHgap(10);
-        gridPane.setVgap(10);
-        gridPane.setPadding(new Insets(10));
+        this.setHgap(10);
+        this.setVgap(10);
+        this.setPadding(new Insets(10));
 
         gridTopPane.setMinWidth(1180);
         logsTxt.setMinWidth(960);
         logsTxt.setMinHeight(500);
         gridBottomPane.setMinWidth(1180);
 
-        Scene scene = new Scene(gridPane, 1260, 800);
-        PerspectiveCamera perspectiveCamera = new PerspectiveCamera();
-        perspectiveCamera.setNearClip(0.001);
-        perspectiveCamera.setFarClip(10000);
-        scene.setCamera(perspectiveCamera);
-        primaryStage.setScene(scene);
-        primaryStage.show();
+        serialClass1.setDataListener(this);
 
         write = false;
         objectList.clear();
         String object = objTable.updateStatus(experimentCount);
         objectTxt.setText(object);
-        setupDataStream();
-    }
-
-    private void setupDataStream()
-    {
-        serialClass = new SerialClass();
-        serialClass.setDataListener(s ->
-                                    {
-                                        if( write )
-                                        {
-                                            if( fixedSampleSize == 0 )
-                                            {
-                                                updateDataOnUI(s);
-                                            }
-                                            else if( (fixedSampleSize > 0 && trackFixedSample < fixedSampleSize) )
-                                            {
-                                                trackFixedSample++;
-                                                updateDataOnUI(s);
-                                            }
-                                            else if(fixedSampleSize > 0 && trackFixedSample == fixedSampleSize)
-                                            {
-                                                experimentCount++;
-                                                String object = objTable.updateStatus(experimentCount);
-                                                objectTxt.setText(object);
-                                                write = false;
-                                            }
-                                        }
-                                    });
-    }
-
-    @Override
-    public void stop() throws Exception
-    {
-        totalSampleCount = 0;
-        serialClass.close();
-        super.stop();
-    }
-
-    private void updateDataOnUI(final String s)
-    {
-        totalSampleCount++;
-        Platform.runLater(() ->
-                          {
-                              String line = s.replaceFirst(",", "");
-                              logsTxt.appendText(line + objectName + "\n");
-                              sampleCntAmtLbl.setText("" + totalSampleCount);
-                              totalPrintedLines++;
-                              if(totalPrintedLines%2000 == 0)
-                              {
-                                   addToList = true;
-                              }
-                          });
     }
 
     @Override
@@ -316,7 +254,7 @@ public class Main extends Application implements EventHandler<ActionEvent>
         }
         else if( event.getSource() == closeBtn )
         {
-            serialClass.close();
+            serialClass1.close();
             System.exit(0);
         }
         else if( event.getSource() == clearBtn )
@@ -351,6 +289,11 @@ public class Main extends Application implements EventHandler<ActionEvent>
             String object = objTable.updateStatus(experimentCount);
             objectTxt.setText(object);
         }
+        else if(event.getSource() == graphButton)
+        {
+            graphPopPanel = new GraphPopPanel();
+            graphPopPanel.create();
+        }
     }
 
     private void writeToFile()
@@ -373,7 +316,7 @@ public class Main extends Application implements EventHandler<ActionEvent>
                     e.printStackTrace();
                 }
             });
-            
+
             fileWriter.write(logsTxt.getText());
         }
         catch( IOException e )
@@ -382,4 +325,114 @@ public class Main extends Application implements EventHandler<ActionEvent>
         }
     }
 
+    @Override
+    public void onDataAvailable(int deviceId, String s)
+    {
+        String line = setAngles(deviceId, s);
+        if(( line!= null) && write)
+        {
+            line = Arrays.deepToString(anglesAry).replace("[[", "").replace("]]", "") ;//+ "#" + line;
+
+            if( fixedSampleSize == 0 )
+            {
+                updateDataOnUI(line);
+            }
+            else if( (fixedSampleSize > 0 && trackFixedSample < fixedSampleSize) )
+            {
+                trackFixedSample++;
+                updateDataOnUI(line);
+            }
+            else if(fixedSampleSize > 0 && trackFixedSample == fixedSampleSize)
+            {
+                experimentCount++;
+                String object = objTable.updateStatus(experimentCount);
+                objectTxt.setText(object);
+                write = false;
+            }
+        }
+
+//        if(graphPopPanel != null)
+//        {
+//            graphPopPanel.addData(s);
+//        }
+
+    }
+
+    private String setAngles(int deviceId, String line)
+    {
+        boolean success = true;
+        int device = 0;
+        double[] data = null;
+        double[] angles = {0.0, 0.0, 0.0};
+        StringBuffer pringLine = new StringBuffer();
+
+        for( String reading : line.split("#", 6))
+        {
+            data = Arrays.stream(reading.split(",")).mapToDouble(Double::parseDouble).toArray();
+            device = (int)data[0];
+            pringLine.append(reading);
+            pringLine.append(",");
+
+            switch( device )
+            {
+                case 1:
+                    angles = calculators[0].calculateQuaternions(data[1], data[2], data[3], data[4], data[5], data[6], data[7], data[8], data[9]);
+                    if(angles != null) anglesAry[0] = angles;
+                    else success = false;
+                    break;
+                case 2:
+                    angles = calculators[1].calculateQuaternions(data[1], data[2], data[3], data[4], data[5], data[6], data[7], data[8], data[9]);
+                    if(angles != null) anglesAry[1] = angles;
+                    else success = false;
+                    break;
+                case 3:
+                    angles = calculators[2].calculateQuaternions(data[1], data[2], data[3], data[4], data[5], data[6], data[7], data[8], data[9]);
+                    if(angles != null) anglesAry[2] = angles;
+                    else success = false;
+                    break;
+                case 4:
+                    angles = calculators[3].calculateQuaternions(data[1], data[2], data[3], data[4], data[5], data[6], data[7], data[8], data[9]);
+                    if(angles != null) anglesAry[3] = angles;
+                    else success = false;
+                    break;
+                case 5:
+                    angles = calculators[4].calculateQuaternions(data[1], data[2], data[3], data[4], data[5], data[6], data[7], data[8], data[9]);
+                    if(angles != null) anglesAry[4] = angles;
+                    else success = false;
+                    break;
+                case 6:
+                    angles = calculators[5].calculateQuaternions(data[1], data[2], data[3], data[4], data[5], data[6], data[7], data[8], data[9]);
+                    if(angles != null) anglesAry[5] = angles;
+                    else success = false;
+                    break;
+                default:
+                    success = false;
+                    break;
+            }
+        }
+
+        return (success) ? pringLine.toString() : null;
+    }
+
+    private void updateDataOnUI(final String s)
+    {
+        totalSampleCount++;
+        Platform.runLater(() ->
+                          {
+                              String line = s.replaceFirst(",", "");
+                              logsTxt.appendText(line + objectName + "\n");
+                              sampleCntAmtLbl.setText("" + totalSampleCount);
+                              totalPrintedLines++;
+                              if(totalPrintedLines%2000 == 0)
+                              {
+                                  addToList = true;
+                              }
+                          });
+    }
+
+    public void stop()
+    {
+        totalSampleCount = 0;
+        serialClass1.close();
+    }
 }

@@ -1,5 +1,6 @@
-package sample;
+package com.thisum.readings;
 
+import com.thisum.readings.RowObj;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.scene.control.TableColumn;

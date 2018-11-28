@@ -1,4 +1,4 @@
-package sample;
+package com.thisum.math;
 
 /**
  * Created by thisum_kankanamge on 12/9/18.

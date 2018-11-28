@@ -1,4 +1,4 @@
-package sample;
+package com.thisum.readings;
 
 /**
  * Created by thisum_kankanamge on 4/9/18.

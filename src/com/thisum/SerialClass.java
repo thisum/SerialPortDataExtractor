@@ -1,4 +1,4 @@
-package sample;
+package com.thisum;
 
 import gnu.io.CommPortIdentifier;
 import gnu.io.SerialPort;
@@ -17,7 +17,7 @@ public class SerialClass implements SerialPortEventListener
     /**
      * The port we're normally going to use.
      */
-    private static final String PORT_NAMES[] = {"/dev/tty.usbmodem4155741"};
+    private static final String PORT_NAMES[] = {"/dev/tty.usbmodem4869681"};
     /**
      * A BufferedReader which will be fed by a InputStreamReader
      * converting the bytes into characters
@@ -37,9 +37,12 @@ public class SerialClass implements SerialPortEventListener
      */
     private static final int DATA_RATE = 9600;
     private DataListener dataListener;
+    private boolean calculateQ = false;
+    private int deviceId = 0;
 
-    public SerialClass()
+    public SerialClass(int deviceId)
     {
+        this.deviceId = deviceId;
         initialize();
     }
 
@@ -119,12 +122,22 @@ public class SerialClass implements SerialPortEventListener
             try
             {
                 String inputLine = input.readLine();
-                dataListener.onDataAvailable(inputLine);
-//                System.out.println(inputLine);
+                System.out.println(inputLine);
+
+                if(dataListener != null && calculateQ)
+                {
+                    dataListener.onDataAvailable(deviceId, inputLine);
+                }
+
+                if(!calculateQ && inputLine.contains("**##**"))
+                {
+                    calculateQ = true;
+                    System.out.println("--------------------------------- Setup Done --------------------------------- \n");
+                }
             }
             catch( Exception e )
             {
-                System.err.println(e.toString());
+                e.printStackTrace();
             }
         }
         // Ignore all the other eventTypes, but you should consider the other ones.
@@ -149,7 +162,7 @@ public class SerialClass implements SerialPortEventListener
                     {
                         try
                         {
-                            dataListener.onDataAvailable("dafsdf as fsd fkasdnkf jlksad flksd lkfnaskd flkasn dlkfnskld flkas klf adsklf kl safkl sdlkf lksaf asd fasd fas dd");
+                            dataListener.onDataAvailable(deviceId, "dafsdf as fsd fkasdnkf jlksad flksd lkfnaskd flkasn dlkfnskld flkas klf adsklf kl safkl sdlkf lksaf asd fasd fas dd");
                             Thread.sleep(10);
                         }
                         catch( NullPointerException e )

@@ -1,4 +1,4 @@
-package sample;
+package com.thisum;
 
 public class Controller {
 }

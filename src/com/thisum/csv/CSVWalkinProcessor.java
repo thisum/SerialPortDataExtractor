@@ -1,6 +1,10 @@
-package sample;
+package com.thisum.csv;
 
-import java.io.*;
+import javafx.scene.layout.HBox;
+
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.Writer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -12,19 +16,20 @@ import java.util.stream.Stream;
 /**
  * Created by thisum_kankanamge on 10/9/18.
  */
-public class CSVProcessor
+public class CSVWalkinProcessor
 {
     private int lineCount = 0;
     private int instanceCount = 1;
     private List<StringBuilder> trainingList = new ArrayList<>();
     private List<StringBuilder> testingList = new ArrayList<>();
     private StringBuilder training;
-    private StringBuilder testing;
+
+    private StringBuilder owner;
     private boolean readingData = false;
 
     private Path writingPath;
 
-    private static String HEADER = "@relation handgrasp_object_detection\n" +
+    private static String HEADER = "@relation handgrasp_object_interaction_detection\n" +
             "\n" +
             "@attribute T_ax real\n" +
             "@attribute T_ay real\n" +
@@ -80,7 +85,7 @@ public class CSVProcessor
             "@attribute B_mx real\n" +
             "@attribute B_my real\n" +
             "@attribute B_mz real\n" +
-            "@attribute Class {grab_a_book, hold_a_mouse, hold_a_pen, hold_a_pencil, hold_a_bottle, hold_water_bottle, grab_water_bottle, grab_water_glass, grab_wine_glass, hold_mug_handle, hold_a_knife, hold_a_spoon, hold_a_bottle_sprayer, grab_workshop_door_lock, hold_screw_driver, hold_a_hammer, hold_a_saw, hold_a_plier, grab_emergency_door_lock}\n" +
+            "@attribute Class {flip_through_a_book, use_a_mouse, write_with_a_pen, write_with_a_pencil, close_a_bottle, open_a_bottle, carry_water_bottle, grab_water_bottle, grab_water_glass, grab_wine_glass, hold_mug_handle, grab_mug, cut_with_a_knife, use_a_spoon, use_a_bottle_sprayer, grab_workshop_door_lock, use_screw_driver, use_a_hammer, use_a_saw, use_a_plier, grab_emergency_door_lock}\n" +
             "\n" +
             "@data\n";
 
@@ -100,7 +105,7 @@ public class CSVProcessor
     private void createSplittedDirectory(String filePath)
     {
         Path path = Paths.get(filePath).getParent();
-        writingPath = Paths.get(path.toString(), "SplittedFiles");
+        writingPath = Paths.get(path.toString(), "Walkin_Files");
         //if directory exists?
         if (!Files.exists(writingPath)) {
             try {
@@ -112,15 +117,10 @@ public class CSVProcessor
         }
     }
 
-    private void readContent(Path filePath)
+    private void readContent(Path filePath, StringBuilder stringBuilder)
     {
         String fileName = filePath.getFileName().toString().split("\\.")[0];
         System.out.println("processing file: " + fileName + "\n");
-        training = new StringBuilder();
-        testing = new StringBuilder();
-
-        trainingList.add(training);
-        testingList.add(testing);
 
         try
         {
@@ -130,20 +130,7 @@ public class CSVProcessor
             {
                 if(readingData)
                 {
-                    lineCount++;
-                    if( lineCount % 50 == 0 )
-                    {
-                        instanceCount++;
-                    }
-
-                    if( instanceCount % 4 == 0 )
-                    {
-                        testing.append(line).append("\n");
-                    }
-                    else
-                    {
-                        training.append(line).append("\n");
-                    }
+                    stringBuilder.append(line).append("\n");
                 }
                 else
                 {
@@ -152,8 +139,6 @@ public class CSVProcessor
 
             });
             readingData = false;
-
-            writeToFile(fileName);
         }
         catch( Exception e )
         {
@@ -161,62 +146,76 @@ public class CSVProcessor
         }
     }
 
-    private void writeToFile(String fileName)
-    {
-        System.out.println("writing testing and training files...\n");
-        try( Writer trainWriter = new FileWriter(writingPath + "/" + fileName + "_train.arff");
-             Writer testWriter = new FileWriter(writingPath + "/" + fileName + "_test.arff")
-        )
-        {
-            trainWriter.write(HEADER);
-            trainWriter.write(training.toString());
-
-            testWriter.write(HEADER);
-            testWriter.write(testing.toString());
-        }
-        catch( IOException e )
-        {
-            e.printStackTrace();
-        }
-    }
-
-
     private void listAllFiles(String path)
     {
         System.out.println("Listing all the files in the path\n");
-        try( Stream<Path> paths = Files.walk(Paths.get(path)) )
+
+        for(int i = 0; i < 12; i++)
         {
-            paths.forEach(filePath ->
-                          {
-                              if( Files.isRegularFile(filePath) )
-                              {
-                                  try
+            trainingList.clear();
+            try( Stream<Path> paths = Files.walk(Paths.get(path)) )
+            {
+                final int[] file = {0};
+
+                    int finalI = i;
+                    final String[] fileOwer = new String[1];
+                    paths.forEach(filePath ->
                                   {
-                                      readContent(filePath);
-                                  }
-                                  catch( Exception e )
-                                  {
-                                      e.printStackTrace();
-                                  }
-                              }
-                          });
-        }
-        catch( IOException e )
-        {
-            e.printStackTrace();
-        }
-        finally
-        {
-            writeFinalFile();
+                                      try
+                                      {
+                                          if( Files.isRegularFile(filePath) && !Files.isHidden(filePath))
+                                          {
+                                              if( file[0] != finalI )
+                                              {
+                                                  try
+                                                  {
+                                                      training = new StringBuilder();
+                                                      trainingList.add(training);
+
+                                                      readContent(filePath, training);
+                                                  }
+                                                  catch( Exception e )
+                                                  {
+                                                      e.printStackTrace();
+                                                  }
+                                              }
+                                              else
+                                              {
+                                                  fileOwer[0] = filePath.getFileName().toString().split("\\.")[0];
+                                                  //                                          owner = new StringBuilder();
+                                                  //                                          readContent(filePath, owner);
+                                              }
+
+                                              file[0]++;
+                                          }
+                                      }
+                                      catch( Exception e )
+                                      {
+                                          e.printStackTrace();
+                                      }
+
+                                  });
+
+                    writeFinalFile(fileOwer[0]);
+
+            }
+            catch( IOException e )
+            {
+                e.printStackTrace();
+            }
+            finally
+            {
+
+            }
         }
     }
 
 
-    private void writeFinalFile()
+    private void writeFinalFile(String s)
     {
         System.out.println("writing final testing and training files...\n");
-        try( Writer trainWriter = new FileWriter(writingPath + "/" +"train.arff");
-             Writer testWriter = new FileWriter(writingPath + "/" +"test.arff")
+        try( Writer trainWriter = new FileWriter(writingPath + "/" + "without_" + s + "_train.arff");
+//             Writer testWriter = new FileWriter(writingPath + "/" + s + "train.arff")
         )
         {
             trainWriter.write(HEADER);
@@ -231,18 +230,8 @@ public class CSVProcessor
                 }
             });
 
-            testWriter.write(HEADER);
-            testingList.forEach(stringBuilder -> {
-                try
-                {
-                    testWriter.write(stringBuilder.toString());
-                }
-                catch( IOException e )
-                {
-                    e.printStackTrace();
-                }
-            });
-
+//            testWriter.write(HEADER);
+//            trainWriter.write(owner.toString());
         }
         catch( Exception e )
         {
