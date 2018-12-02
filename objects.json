@@ -1,8 +1,9 @@
 {
   "objects" : [
-    "index_up",
-    "index_front",
-    "pinch",
-    "spread_fingers"
+    "pen",
+    "knife",
+    "mouse",
+    "bottle",
+    "cup"
   ]
 }

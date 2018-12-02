@@ -1,5 +1,7 @@
 package com.thisum.math;
 
+import com.thisum.AngleResult;
+
 /**
  * Created by thisum_kankanamge on 13/9/18.
  */
@@ -51,7 +53,7 @@ public class MadgwickQuaternionCalculator
         float[] q = {1.0f, 0.0f, 0.0f, 0.0f};
     }
 
-    public double[] calculateQuaternions(double ax, double ay, double az, double gx, double gy, double gz, double mx, double my, double mz)
+    public AngleResult calculateQuaternions(double ax, double ay, double az, double gx, double gy, double gz, double mx, double my, double mz)
     {
         q1 = q[0];
         q2 = q[1];
@@ -156,9 +158,12 @@ public class MadgwickQuaternionCalculator
         roll = Math.toDegrees(Math.atan2(a31, a33));
 
         yaw = declination + Math.toDegrees(Math.atan2(a12, a22));
-        if (yaw < 0) yaw += 360.0;
+        if (yaw > 270) yaw -= 360.0;
+        if(roll<0) roll += 360.0f;
+        if(roll >270) roll -=360.0f;
 
-        return new double[]{yaw, pitch, roll};
+
+        return new AngleResult(yaw, pitch, roll, q1, q2, q3, q4);
     }
 
 }

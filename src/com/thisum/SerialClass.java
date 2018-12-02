@@ -122,7 +122,7 @@ public class SerialClass implements SerialPortEventListener
             try
             {
                 String inputLine = input.readLine();
-                System.out.println(inputLine);
+                if(!calculateQ)  System.out.println(inputLine);
 
                 if(dataListener != null && calculateQ)
                 {

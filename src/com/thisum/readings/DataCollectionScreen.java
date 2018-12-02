@@ -1,5 +1,6 @@
 package com.thisum.readings;
 
+import com.thisum.AngleResult;
 import com.thisum.DataListener;
 import com.thisum.SerialClass;
 import com.thisum.math.MadgwickQuaternionCalculator;
@@ -13,74 +14,34 @@ import javafx.scene.layout.GridPane;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.Writer;
+import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.logging.Logger;
 
 public class DataCollectionScreen extends GridPane implements EventHandler<ActionEvent>, DataListener
 {
     private static final String HEADER_ATTRIBUTES = "@relation handgrasp_object_detection\n\n" +
-//            "@attribute T_ax real\n" +
-//            "@attribute T_ay real\n" +
-//            "@attribute T_az real\n" +
-//            "@attribute T_gx real\n" +
-//            "@attribute T_gy real\n" +
-//            "@attribute T_gz real\n" +
-//            "@attribute T_mx real\n" +
-//            "@attribute T_my real\n" +
-//            "@attribute T_mz real\n" +
-//            "@attribute I_ax real\n" +
-//            "@attribute I_ay real\n" +
-//            "@attribute I_az real\n" +
-//            "@attribute I_gx real\n" +
-//            "@attribute I_gy real\n" +
-//            "@attribute I_gz real\n" +
-//            "@attribute I_mx real\n" +
-//            "@attribute I_my real\n" +
-//            "@attribute I_mz real\n" +
-//            "@attribute M_ax real\n" +
-//            "@attribute M_ay real\n" +
-//            "@attribute M_az real\n" +
-//            "@attribute M_gx real\n" +
-//            "@attribute M_gy real\n" +
-//            "@attribute M_gz real\n" +
-//            "@attribute M_mx real\n" +
-//            "@attribute M_my real\n" +
-//            "@attribute M_mz real\n" +
-//            "@attribute R_ax real\n" +
-//            "@attribute R_ay real\n" +
-//            "@attribute R_az real\n" +
-//            "@attribute R_gx real\n" +
-//            "@attribute R_gy real\n" +
-//            "@attribute R_gz real\n" +
-//            "@attribute R_mx real\n" +
-//            "@attribute R_my real\n" +
-//            "@attribute R_mz real\n" +
-//            "@attribute P_ax real\n" +
-//            "@attribute P_ay real\n" +
-//            "@attribute P_az real\n" +
-//            "@attribute P_gx real\n" +
-//            "@attribute P_gy real\n" +
-//            "@attribute P_gz real\n" +
-//            "@attribute P_mx real\n" +
-//            "@attribute P_my real\n" +
-//            "@attribute P_mz real\n" +
-//            "@attribute B_ax real\n" +
-//            "@attribute B_ay real\n" +
-//            "@attribute B_az real\n" +
-//            "@attribute B_gx real\n" +
-//            "@attribute B_gy real\n" +
-//            "@attribute B_gz real\n" +
-//            "@attribute B_mx real\n" +
-//            "@attribute B_my real\n" +
-//            "@attribute B_mz real\n";
-            "@attribute Q0 real\n" +
-            "@attribute Q1 real\n" +
-            "@attribute Q2 real\n" +
-            "@attribute Q3 real\n" ;
-
+            "@attribute P_Y real\n" +
+            "@attribute P_P real\n" +
+            "@attribute P_R real\n" +
+            "@attribute R_Y real\n" +
+            "@attribute R_P real\n" +
+            "@attribute R_R real\n" +
+            "@attribute M_Y real\n" +
+            "@attribute M_P real\n" +
+            "@attribute M_R real\n" +
+            "@attribute I_Y real\n" +
+            "@attribute I_P real\n" +
+            "@attribute I_R real\n" +
+            "@attribute T_Y real\n" +
+            "@attribute T_P real\n" +
+            "@attribute T_R real\n";
     private static String ATTRIBUTES_CLASS = "@attribute Class {";
+    private static final Logger LOGGER = Logger.getLogger(DataCollectionScreen.class.getName());
 
+    private DecimalFormat df = new DecimalFormat("#.##");
     private GridPane gridTopPane;
     private GridPane gridBottomPane;
 
@@ -119,8 +80,15 @@ public class DataCollectionScreen extends GridPane implements EventHandler<Actio
 
     private int totalPrintedLines = 0;
     private List<StringBuffer> bufferList = new ArrayList<>();
-    private double anglesAry[][] = new double[][]{{0,0,0}, {0,0,0}, {0,0,0}, {0,0,0}, {0,0,0}, {0,0,0}};
+    private List<StringBuffer> rawBufferList = new ArrayList<>();
+    private List<StringBuffer> quartBufferList = new ArrayList<>();
+    private int rawDataLines = 0;
+    private double rawAnglesAry[][] = new double[][]{{0,0,0}, {0,0,0}, {0,0,0}, {0,0,0}, {0,0,0}, {0,0,0}};
+    private double rawQuarternionsAry[][] = new double[][]{{0,0,0,0}, {0,0,0,0}, {0,0,0,0}, {0,0,0,0}, {0,0,0,0}, {0,0,0,0}};
+    private double relativeAnglesAry[][] = new double[][]{{0,0,0}, {0,0,0}, {0,0,0}, {0,0,0}, {0,0,0}};
     private MadgwickQuaternionCalculator calculators[] = new MadgwickQuaternionCalculator[6];
+    private StringBuffer quartBuffer = null;
+    private StringBuffer rawBuffer = null;
 
     public DataCollectionScreen(SerialClass serialClass1)
     {
@@ -216,6 +184,10 @@ public class DataCollectionScreen extends GridPane implements EventHandler<Actio
         objectList.clear();
         String object = objTable.updateStatus(experimentCount);
         objectTxt.setText(object);
+        rawBuffer = new StringBuffer();
+        quartBuffer = new StringBuffer();
+        rawBufferList.add(rawBuffer);
+        quartBufferList.add(quartBuffer);
     }
 
     @Override
@@ -275,6 +247,14 @@ public class DataCollectionScreen extends GridPane implements EventHandler<Actio
             String object = objTable.clearTable();
             objectTxt.setText(object);
             bufferList.clear();
+            rawDataLines = 0;
+            rawBufferList.clear();
+            quartBufferList.clear();
+            rawBuffer = new StringBuffer();
+            quartBuffer = new StringBuffer();
+            rawBufferList.add(rawBuffer);
+            quartBufferList.add(quartBuffer);
+
         }
         else if( event.getSource() == fixSampleSizeChk )
         {
@@ -310,6 +290,7 @@ public class DataCollectionScreen extends GridPane implements EventHandler<Actio
                 try
                 {
                     fileWriter.write(buffer.toString());
+                    System.out.println("******** data file written ********");
                 }
                 catch( IOException e )
                 {
@@ -323,24 +304,71 @@ public class DataCollectionScreen extends GridPane implements EventHandler<Actio
         {
             e.printStackTrace();
         }
+
+        try( Writer fileWriter = new FileWriter(userNameTxt.getText() + "_raw.arff") )
+        {
+            rawBufferList.forEach(buffer -> {
+                try
+                {
+                    fileWriter.write(buffer.toString());
+                    System.out.println("******** raw data written ********");
+                }
+                catch( IOException e )
+                {
+                    e.printStackTrace();
+                }
+            });
+        }
+        catch( IOException e )
+        {
+            e.printStackTrace();
+        }
+
+
+        try( Writer fileWriter = new FileWriter(userNameTxt.getText() + "_quart.arff") )
+        {
+            quartBufferList.forEach(buffer -> {
+                try
+                {
+                    fileWriter.write(buffer.toString());
+                    System.out.println("******** quart data written ********");
+                }
+                catch( IOException e )
+                {
+                    e.printStackTrace();
+                }
+            });
+        }
+        catch( IOException e )
+        {
+            e.printStackTrace();
+        }
     }
 
     @Override
     public void onDataAvailable(int deviceId, String s)
     {
+        String rawAngles = "";
+        String rawQuarts = "";
+        String realtiveAngles = "";
         String line = setAngles(deviceId, s);
         if(( line!= null) && write)
         {
-            line = Arrays.deepToString(anglesAry).replace("[[", "").replace("]]", "") ;//+ "#" + line;
+            calculateRelativePositions();
+            rawAngles = Arrays.deepToString(rawAnglesAry).replace("[", "").replace("]", "");
+            realtiveAngles = Arrays.deepToString(relativeAnglesAry).replace("[", "").replace("]", "") ;
+            rawQuarts = Arrays.deepToString(rawQuarternionsAry).replace("[", "").replace("]", "") ;
 
             if( fixedSampleSize == 0 )
             {
-                updateDataOnUI(line);
+                updateDataOnUI(realtiveAngles);
+                writeToBuffer(line, rawAngles, rawQuarts);
             }
             else if( (fixedSampleSize > 0 && trackFixedSample < fixedSampleSize) )
             {
                 trackFixedSample++;
-                updateDataOnUI(line);
+                updateDataOnUI(realtiveAngles);
+                writeToBuffer(line, rawAngles, rawQuarts);
             }
             else if(fixedSampleSize > 0 && trackFixedSample == fixedSampleSize)
             {
@@ -349,13 +377,30 @@ public class DataCollectionScreen extends GridPane implements EventHandler<Actio
                 objectTxt.setText(object);
                 write = false;
             }
+
+            rawDataLines++;
+            if(rawDataLines %4000 == 0)
+            {
+                rawBufferList.add(rawBuffer);
+                rawBuffer = new StringBuffer();
+
+                quartBufferList.add(quartBuffer);
+                quartBuffer = new StringBuffer();
+            }
+
+            LOGGER.info(rawAngles);
         }
+    }
 
-//        if(graphPopPanel != null)
-//        {
-//            graphPopPanel.addData(s);
-//        }
-
+    private void writeToBuffer(String line, String rawAngles, String rawQuarts)
+    {
+        rawBuffer.append(line);
+        rawBuffer.append(rawAngles);
+        rawBuffer.append(objectName);
+        rawBuffer.append("\n");
+        quartBuffer.append(rawQuarts);
+        quartBuffer.append(objectName);
+        quartBuffer.append("\n");
     }
 
     private String setAngles(int deviceId, String line)
@@ -363,46 +408,69 @@ public class DataCollectionScreen extends GridPane implements EventHandler<Actio
         boolean success = true;
         int device = 0;
         double[] data = null;
-        double[] angles = {0.0, 0.0, 0.0};
-        StringBuffer pringLine = new StringBuffer();
+        AngleResult angles = null;
+        StringBuffer dataLine = new StringBuffer();
 
         for( String reading : line.split("#", 6))
         {
             data = Arrays.stream(reading.split(",")).mapToDouble(Double::parseDouble).toArray();
             device = (int)data[0];
-            pringLine.append(reading);
-            pringLine.append(",");
+            dataLine.append(data[1]+","+data[2]+","+data[3]+","+data[4]+","+data[5]+","+data[6]+","+data[7]+","+data[8]+","+data[9]+"#");
 
             switch( device )
             {
                 case 1:
                     angles = calculators[0].calculateQuaternions(data[1], data[2], data[3], data[4], data[5], data[6], data[7], data[8], data[9]);
-                    if(angles != null) anglesAry[0] = angles;
+                    if(angles != null)
+                    {
+                        rawAnglesAry[0] = angles.getAngles();
+                        rawQuarternionsAry[0] = angles.getQuarternions();
+                    }
                     else success = false;
                     break;
                 case 2:
                     angles = calculators[1].calculateQuaternions(data[1], data[2], data[3], data[4], data[5], data[6], data[7], data[8], data[9]);
-                    if(angles != null) anglesAry[1] = angles;
+                    if(angles != null)
+                    {
+                        rawAnglesAry[1] = angles.getAngles();
+                        rawQuarternionsAry[1] = angles.getQuarternions();
+                    }
                     else success = false;
                     break;
                 case 3:
                     angles = calculators[2].calculateQuaternions(data[1], data[2], data[3], data[4], data[5], data[6], data[7], data[8], data[9]);
-                    if(angles != null) anglesAry[2] = angles;
+                    if(angles != null)
+                    {
+                        rawAnglesAry[2] = angles.getAngles();
+                        rawQuarternionsAry[2] = angles.getQuarternions();
+                    }
                     else success = false;
                     break;
                 case 4:
                     angles = calculators[3].calculateQuaternions(data[1], data[2], data[3], data[4], data[5], data[6], data[7], data[8], data[9]);
-                    if(angles != null) anglesAry[3] = angles;
+                    if(angles != null)
+                    {
+                        rawAnglesAry[3] = angles.getAngles();
+                        rawQuarternionsAry[3] = angles.getQuarternions();
+                    }
                     else success = false;
                     break;
                 case 5:
                     angles = calculators[4].calculateQuaternions(data[1], data[2], data[3], data[4], data[5], data[6], data[7], data[8], data[9]);
-                    if(angles != null) anglesAry[4] = angles;
+                    if(angles != null)
+                    {
+                        rawAnglesAry[4] = angles.getAngles();
+                        rawQuarternionsAry[4] = angles.getQuarternions();
+                    }
                     else success = false;
                     break;
                 case 6:
                     angles = calculators[5].calculateQuaternions(data[1], data[2], data[3], data[4], data[5], data[6], data[7], data[8], data[9]);
-                    if(angles != null) anglesAry[5] = angles;
+                    if(angles != null)
+                    {
+                        rawAnglesAry[5] = angles.getAngles();
+                        rawQuarternionsAry[5] = angles.getQuarternions();
+                    }
                     else success = false;
                     break;
                 default:
@@ -411,7 +479,18 @@ public class DataCollectionScreen extends GridPane implements EventHandler<Actio
             }
         }
 
-        return (success) ? pringLine.toString() : null;
+        return (success) ? dataLine.toString() : null;
+    }
+
+    private void calculateRelativePositions()
+    {
+        double[] palm = rawAnglesAry[0];
+        for(int i=1; i<6; i++)
+        {
+            relativeAnglesAry[i-1][0] = Double.valueOf(df.format(rawAnglesAry[i][0] - palm[0]));
+            relativeAnglesAry[i-1][1] = Double.valueOf(df.format(rawAnglesAry[i][1] - palm[1]));
+            relativeAnglesAry[i-1][2] = Double.valueOf(df.format(rawAnglesAry[i][2] - palm[2]));
+        }
     }
 
     private void updateDataOnUI(final String s)
@@ -419,8 +498,7 @@ public class DataCollectionScreen extends GridPane implements EventHandler<Actio
         totalSampleCount++;
         Platform.runLater(() ->
                           {
-                              String line = s.replaceFirst(",", "");
-                              logsTxt.appendText(line + objectName + "\n");
+                              logsTxt.appendText(s + objectName + "\n");
                               sampleCntAmtLbl.setText("" + totalSampleCount);
                               totalPrintedLines++;
                               if(totalPrintedLines%2000 == 0)
