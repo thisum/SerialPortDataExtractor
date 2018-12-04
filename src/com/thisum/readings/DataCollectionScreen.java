@@ -15,9 +15,6 @@ import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.GridPane;
 
-import javax.imageio.ImageIO;
-import javax.swing.*;
-import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -26,9 +23,9 @@ import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
 public class DataCollectionScreen extends GridPane implements EventHandler<ActionEvent>, DataListener
@@ -169,7 +166,7 @@ public class DataCollectionScreen extends GridPane implements EventHandler<Actio
         fixSampleSizeChk.setSelected(true);
         sampleSizeTxt = new TextField();
         sampleSizeTxt.setEditable(true);
-        sampleSizeTxt.setText("" + 250);
+        sampleSizeTxt.setText("" + 500);
 
         logsTxt = new TextArea();
 
@@ -286,6 +283,11 @@ public class DataCollectionScreen extends GridPane implements EventHandler<Actio
     {
         if( event.getSource() == startBtn )
         {
+            if(write)
+            {
+                return;
+            }
+
             statusLbl.setGraphic(null);
             if(addToList)
             {
@@ -329,6 +331,17 @@ public class DataCollectionScreen extends GridPane implements EventHandler<Actio
         }
         else if( event.getSource() == clearBtn )
         {
+
+            Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+            alert.setTitle("Confirmation Dialog");
+            alert.setContentText("You are about to clear all the data. Please confirm");
+
+            Optional<ButtonType> result = alert.showAndWait();
+            if (result.get() != ButtonType.OK)
+            {
+                return;
+            }
+
             userNameTxt.clear();
             objectTxt.clear();
             objectList.clear();
@@ -391,6 +404,9 @@ public class DataCollectionScreen extends GridPane implements EventHandler<Actio
     {
         experimentCount++;
         String object = objTable.updateStatus(experimentCount);
+        boolean oneSweepDone = objTable.hasOneSweepDone();
+        showDialog(oneSweepDone);
+
         objectTxt.setText(object);
         write = false;
 
@@ -438,6 +454,24 @@ public class DataCollectionScreen extends GridPane implements EventHandler<Actio
             {
                 relaxStatusLbl.setText(status);
                 statusLbl.setGraphic(readyIcon);
+            }
+        });
+    }
+
+    private void showDialog(final boolean oneSweepDone)
+    {
+        Platform.runLater(new Runnable()
+        {
+            @Override
+            public void run()
+            {
+                if(oneSweepDone)
+                {
+                    Alert alert = new Alert(Alert.AlertType.INFORMATION);
+                    alert.setTitle("Info");
+                    alert.setContentText("One round is done, please save the data");
+                    alert.showAndWait();
+                }
             }
         });
     }
@@ -647,11 +681,34 @@ public class DataCollectionScreen extends GridPane implements EventHandler<Actio
 
     private void writeToFile()
     {
+        String fileName = userNameTxt.getText().trim();
+        if(fileName.isEmpty())
+        {
+            Alert alert = new Alert(Alert.AlertType.WARNING);
+            alert.setTitle("Warning");
+            alert.setContentText("Please specify the file name");
+            alert.showAndWait();
+
+            return;
+        }
+
+        File file = new File(userNameTxt.getText() + ".arff");
+        if(file.exists())
+        {
+            Alert alert = new Alert(Alert.AlertType.WARNING);
+            alert.setTitle("Warning");
+            alert.setContentText("File Exists. User another name");
+            alert.showAndWait();
+
+            return;
+        }
+
         rawBufferList.add(rawBuffer);
         quatBufferList.add(quartBuffer);
         relativeAngBufferList.add(relativeAngBuffer);
 
         ATTRIBUTES_CLASS += objectList.toString().replace("[", "").replace("]", "") + "}";
+
 
         try( Writer fileWriter = new FileWriter(userNameTxt.getText() + ".arff") )
         {

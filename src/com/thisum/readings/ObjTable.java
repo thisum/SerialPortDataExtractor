@@ -1,6 +1,5 @@
 package com.thisum.readings;
 
-import com.thisum.readings.RowObj;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.scene.control.TableColumn;
@@ -93,6 +92,12 @@ public class ObjTable
         RowObj rowObj = dataList.get(row);
 
         rowObj.setCount(increment ? rowObj.getCount()+1 : rowObj.getCount()-1);
+    }
+
+    public boolean hasOneSweepDone()
+    {
+        int totalCount = dataList.stream().mapToInt(RowObj::getCount).sum();
+        return totalCount == dataList.size();
     }
 
     public String clearTable()
