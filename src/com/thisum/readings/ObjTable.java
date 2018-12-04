@@ -13,7 +13,9 @@ import org.json.simple.parser.ParseException;
 
 import java.io.FileReader;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.Iterator;
+import java.util.Random;
 
 /**
  * Created by thisum_kankanamge on 4/9/18.
@@ -62,6 +64,7 @@ public class ObjTable
             {
                 dataList.add(new RowObj(String.valueOf(iti.next())));
             }
+            Collections.shuffle(dataList, new Random(12000));
         }
         catch( ParseException | IOException e )
         {

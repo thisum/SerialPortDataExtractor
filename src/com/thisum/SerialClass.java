@@ -162,8 +162,8 @@ public class SerialClass implements SerialPortEventListener
                     {
                         try
                         {
-                            dataListener.onDataAvailable(deviceId, "dafsdf as fsd fkasdnkf jlksad flksd lkfnaskd flkasn dlkfnskld flkas klf adsklf kl safkl sdlkf lksaf asd fasd fas dd");
-                            Thread.sleep(10);
+                            dataListener.onDataAvailable(deviceId, "1,-0.95,0.13,0.35,0.05,0.01,0.02,267.82,-100.7,-324.49#2,-1.0,0.21,-0.08,0.05,0.02,-0.0,327.44,-268.86,182.96#3,-0.89,0.29,-0.45,0.07,0.01,0.01,305.68,-262.13,283.24#4,-0.86,0.59,-0.02,0.07,0.01,-0.02,193.65,-422.91,145.42#5,-0.81,0.73,0.08,0.06,-0.0,-0.05,215.28,-392.28,163.59#6,0.49,0.8,0.32,-0.03,-0.03,-0.05,-294.36,-382.09,62.62");
+                            Thread.sleep(25);
                         }
                         catch( NullPointerException e )
                         {

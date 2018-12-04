@@ -1,9 +1,26 @@
 {
   "objects" : [
     "pen",
-    "knife",
-    "mouse",
+    "pencil",
     "bottle",
-    "cup"
+    "mug_handle",
+    "knife",
+    "spoon",
+    "wine_glass",
+    "saw",
+    "hammer",
+    "screw_driver",
+    "door",
+    "pen_writing",
+    "bottle_drinking",
+    "mug_drinking",
+    "knife_cutting",
+    "spoon_using",
+    "wine_glass_drinking",
+    "saw_cutting",
+    "hammer_hitting",
+    "screw_driver_using",
+    "door_opening",
+    "door_closing"
   ]
 }

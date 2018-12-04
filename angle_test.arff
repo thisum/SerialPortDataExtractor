@@ -1,0 +1,20 @@
+@relation handgrasp_object_detection
+
+@attribute P_Y real
+@attribute P_P real
+@attribute P_R real
+@attribute R_Y real
+@attribute R_P real
+@attribute R_R real
+@attribute M_Y real
+@attribute M_P real
+@attribute M_R real
+@attribute I_Y real
+@attribute I_P real
+@attribute I_R real
+@attribute T_Y real
+@attribute T_P real
+@attribute T_R real
+@attribute Class {pen, knife, mouse, bottle, cup,none}
+
+@data
