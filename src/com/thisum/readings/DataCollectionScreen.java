@@ -4,6 +4,10 @@ import com.thisum.AngleResult;
 import com.thisum.DataListener;
 import com.thisum.SerialClass;
 import com.thisum.math.MadgwickQuaternionCalculator;
+import com.thisum.math.MovingAvgClass;
+import com.thisum.math.MovingGradientClass;
+import com.thisum.watch.DataObserver;
+import com.thisum.watch.SocketListener;
 import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
@@ -28,7 +32,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.logging.Logger;
 
-public class DataCollectionScreen extends GridPane implements EventHandler<ActionEvent>, DataListener
+public class DataCollectionScreen extends GridPane implements EventHandler<ActionEvent>, DataListener, DataObserver
 {
     private static final String HEADER_ATTRIBUTES = "@relation handgrasp_object_detection\n\n" +
             "@attribute P_q1 real\n" +
@@ -71,6 +75,11 @@ public class DataCollectionScreen extends GridPane implements EventHandler<Actio
     private ToggleButton angleButton;
     private ToggleButton noPredictButton;
 
+    private ToggleButton firstTurnButton;
+    private ToggleButton sesondTurnButton;
+    private ToggleButton thirdTurnButton;
+    private ToggleButton fourthTurnButton;
+
     private CheckBox fixSampleSizeChk;
 
     private Label userNameLbl;
@@ -108,25 +117,37 @@ public class DataCollectionScreen extends GridPane implements EventHandler<Actio
     private List<StringBuffer> rawBufferList = new ArrayList<>();
     private List<StringBuffer> quatBufferList = new ArrayList<>();
     private List<StringBuffer> relativeAngBufferList = new ArrayList<>();
+    private List<StringBuffer> ppgBufferList = new ArrayList<>();
     private int rawDataLines = 0;
-    private double rawAnglesAry[][] = new double[][]{{0,0,0}, {0,0,0}, {0,0,0}, {0,0,0}, {0,0,0}, {0,0,0}};
-    private double rawQuaternionsAry[][] = new double[][]{{0,0,0,0}, {0,0,0,0}, {0,0,0,0}, {0,0,0,0}, {0,0,0,0}, {0,0,0,0}};
-    private double relativeAnglesAry[][] = new double[][]{{0,0,0}, {0,0,0}, {0,0,0}, {0,0,0}, {0,0,0}};
-    private double relativeQuaternionsAry[][] = new double[][]{{0,0,0,0}, {0,0,0,0}, {0,0,0,0}, {0,0,0,0}, {0,0,0,0}};
+    private double rawAnglesAry[][] = new double[][]{{0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}};
+    private double rawQuaternionsAry[][] = new double[][]{{0, 0, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0}};
+    private double relativeAnglesAry[][] = new double[][]{{0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}};
+    private double relativeQuaternionsAry[][] = new double[][]{{0, 0, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0}};
     private MadgwickQuaternionCalculator calculators[] = new MadgwickQuaternionCalculator[6];
     private StringBuffer quartBuffer = null;
     private StringBuffer rawBuffer = null;
+    private StringBuffer ppgBuffer = null;
     private StringBuffer relativeAngBuffer = null;
     private RealtimeClassifier realtimeClassifier = null;
     private ExecutorService executor = Executors.newSingleThreadExecutor();
 
+    private MovingAvgClass movingAvgClass;
+    private MovingGradientClass movingGradientClass;
+
+    private double avg = 0.0d;
+    private double grad = 0.0d;
+
     public DataCollectionScreen(SerialClass serialClass1)
     {
         this.serialClass1 = serialClass1;
-        for(int i=0; i<6; i++)
+        for( int i = 0; i < 6; i++ )
         {
             calculators[i] = new MadgwickQuaternionCalculator();
         }
+        SocketListener socketListener = new SocketListener();
+        socketListener.setDataObjserver(this);
+        Thread thread = new Thread(socketListener);
+        thread.start();
         setup();
     }
 
@@ -145,10 +166,19 @@ public class DataCollectionScreen extends GridPane implements EventHandler<Actio
         quatButton = new ToggleButton("Predict Quat");
         angleButton = new ToggleButton("Predict Angl");
         noPredictButton = new ToggleButton("No Predict");
-        ToggleGroup toggleGroup = new ToggleGroup();
-        quatButton.setToggleGroup(toggleGroup);
-        angleButton.setToggleGroup(toggleGroup);
-        noPredictButton.setToggleGroup(toggleGroup);
+        firstTurnButton = new ToggleButton(" 1 ");
+        sesondTurnButton = new ToggleButton(" 2 ");
+        thirdTurnButton = new ToggleButton(" 3 ");
+        fourthTurnButton = new ToggleButton(" 4 ");
+        ToggleGroup toggleGroup1 = new ToggleGroup();
+        quatButton.setToggleGroup(toggleGroup1);
+        angleButton.setToggleGroup(toggleGroup1);
+        noPredictButton.setToggleGroup(toggleGroup1);
+        ToggleGroup toggleGroup2 = new ToggleGroup();
+        firstTurnButton.setToggleGroup(toggleGroup2);
+        sesondTurnButton.setToggleGroup(toggleGroup2);
+        thirdTurnButton.setToggleGroup(toggleGroup2);
+        fourthTurnButton.setToggleGroup(toggleGroup2);
 
         userNameLbl = new Label("User: ");
         userNameTxt = new TextField();
@@ -166,7 +196,7 @@ public class DataCollectionScreen extends GridPane implements EventHandler<Actio
         fixSampleSizeChk.setSelected(true);
         sampleSizeTxt = new TextField();
         sampleSizeTxt.setEditable(true);
-        sampleSizeTxt.setText("" + 500);
+        sampleSizeTxt.setText("" + 250);
 
         logsTxt = new TextArea();
 
@@ -200,8 +230,12 @@ public class DataCollectionScreen extends GridPane implements EventHandler<Actio
         gridTopPane.add(userNameTxt, 1, 0, 4, 1);
         gridTopPane.add(fixSampleSizeChk, 5, 0, 1, 1);
         gridTopPane.add(sampleSizeTxt, 6, 0, 1, 1);
-        gridTopPane.add(statusLbl, 7, 0, 1, 2);
-        gridTopPane.add(relaxStatusLbl, 8, 0, 1, 1);
+        gridTopPane.add(firstTurnButton, 7, 0, 1, 1);
+        gridTopPane.add(sesondTurnButton, 8, 0, 1, 1);
+        gridTopPane.add(thirdTurnButton, 9, 0, 1, 1);
+        gridTopPane.add(fourthTurnButton, 10, 0, 1, 1);
+        gridTopPane.add(statusLbl, 11, 0, 1, 2);
+        gridTopPane.add(relaxStatusLbl, 12, 0, 1, 1);
 
 
         gridTopPane.add(objectLbl, 0, 1, 1, 1);
@@ -226,7 +260,7 @@ public class DataCollectionScreen extends GridPane implements EventHandler<Actio
         gridBottomPane.add(quatButton, 6, 0);
         gridBottomPane.add(noPredictButton, 7, 0);
 
-        this.add(gridTopPane, 0, 0, 2,1);
+        this.add(gridTopPane, 0, 0, 2, 1);
         this.add(logsTxt, 0, 1);
         this.add(objTable.getTable(), 1, 1);
         this.add(gridBottomPane, 0, 3, 2, 1);
@@ -247,6 +281,7 @@ public class DataCollectionScreen extends GridPane implements EventHandler<Actio
         String object = objTable.updateStatus(experimentCount);
         objectTxt.setText(object);
         rawBuffer = new StringBuffer();
+        ppgBuffer = new StringBuffer();
         quartBuffer = new StringBuffer();
         relativeAngBuffer = new StringBuffer();
 //        rawBufferList.add(rawBuffer);
@@ -254,28 +289,59 @@ public class DataCollectionScreen extends GridPane implements EventHandler<Actio
 //        relativeAngBufferList.add(relativeAngBuffer);
 
 
-        toggleGroup.selectedToggleProperty().addListener(new ChangeListener<Toggle>()
+        toggleGroup1.selectedToggleProperty().addListener(new ChangeListener<Toggle>()
         {
             public void changed(ObservableValue<? extends Toggle> ov, Toggle toggle, Toggle new_toggle)
             {
-                ToggleButton button = (ToggleButton)toggleGroup.getSelectedToggle();
-                if(button == noPredictButton)
+                ToggleButton button = ( ToggleButton ) toggleGroup1.getSelectedToggle();
+                if( button == noPredictButton )
                 {
                     quatPredict = false;
                     anglePredict = false;
                 }
-                else if(button == angleButton)
+                else if( button == angleButton )
                 {
                     anglePredict = true;
                     quatPredict = false;
                 }
-                else if(button == quatButton)
+                else if( button == quatButton )
                 {
                     anglePredict = false;
                     quatPredict = true;
                 }
             }
         });
+
+        toggleGroup2.selectedToggleProperty().addListener(new ChangeListener<Toggle>()
+        {
+            @Override
+            public void changed(ObservableValue<? extends Toggle> observable, Toggle oldValue, Toggle newValue)
+            {
+                ToggleButton button = ( ToggleButton ) toggleGroup2.getSelectedToggle();
+                if( button == firstTurnButton )
+                {
+                    objTable.shuffleList(1);
+                }
+                else if( button == sesondTurnButton )
+                {
+                    objTable.shuffleList(2);
+                }
+                else if( button == thirdTurnButton )
+                {
+                    objTable.shuffleList(3);
+                }
+                else if( button == fourthTurnButton )
+                {
+                    objTable.shuffleList(4);
+                }
+                String object = objTable.updateStatus(experimentCount);
+                objectTxt.setText(object);
+            }
+        });
+
+
+        movingAvgClass = new MovingAvgClass(5);
+        movingGradientClass = new MovingGradientClass(3);
     }
 
     @Override
@@ -337,7 +403,7 @@ public class DataCollectionScreen extends GridPane implements EventHandler<Actio
             alert.setContentText("You are about to clear all the data. Please confirm");
 
             Optional<ButtonType> result = alert.showAndWait();
-            if (result.get() != ButtonType.OK)
+            if( result.get() != ButtonType.OK )
             {
                 return;
             }
@@ -361,12 +427,15 @@ public class DataCollectionScreen extends GridPane implements EventHandler<Actio
             rawDataLines = 0;
             rawBufferList.clear();
             quatBufferList.clear();
+            ppgBufferList.clear();
             relativeAngBufferList.clear();
+            ppgBuffer = new StringBuffer();
             rawBuffer = new StringBuffer();
             quartBuffer = new StringBuffer();
             relativeAngBuffer = new StringBuffer();
             rawBufferList.add(rawBuffer);
             quatBufferList.add(quartBuffer);
+            ppgBufferList.add(ppgBuffer);
             relativeAngBufferList.add(relativeAngBuffer);
             relaxDataRecord = false;
             relaxStatusLbl.setText("");
@@ -377,24 +446,25 @@ public class DataCollectionScreen extends GridPane implements EventHandler<Actio
             fixedSampleSize = 0;
             sampleSizeTxt.setText("" + 0);
         }
-        else if(event.getSource() == undoBtn)
+        else if( event.getSource() == undoBtn )
         {
             experimentCount--;
             objTable.updateCount(experimentCount, false);
             String object = objTable.updateStatus(experimentCount);
             objectTxt.setText(object);
             rawBuffer.setLength(0);
+            ppgBuffer.setLength(0);
             quartBuffer.setLength(0);
             relativeAngBuffer.setLength(0);
             totalSampleCount -= trackFixedSample;
             updateSampleCount();
         }
-        else if(event.getSource() == graphButton)
+        else if( event.getSource() == graphButton )
         {
             graphPopPanel = new GraphPopPanel();
             graphPopPanel.create();
         }
-        else if(event.getSource() == loadClassifierButton)
+        else if( event.getSource() == loadClassifierButton )
         {
             realtimeClassifier.loadClassifier();
         }
@@ -404,12 +474,79 @@ public class DataCollectionScreen extends GridPane implements EventHandler<Actio
     {
         experimentCount++;
         String object = objTable.updateStatus(experimentCount);
-        boolean oneSweepDone = objTable.hasOneSweepDone();
-        showDialog(oneSweepDone);
-
         objectTxt.setText(object);
         write = false;
+        boolean oneSweepDone = objTable.hasOneSweepDone();
+        if( oneSweepDone )
+        {
+            showDialog(oneSweepDone);
+        }
+        else
+        {
+            try
+            {
+                Thread.sleep(1000);
+                showRelaxDataConfirmation();
+            }
+            catch( Exception e )
+            {
+                e.printStackTrace();
+            }
+        }
+    }
 
+    private void changeIcon(final ImageView readyIcon, final String status)
+    {
+        Platform.runLater(new Runnable()
+        {
+            @Override
+            public void run()
+            {
+                relaxStatusLbl.setText(status);
+                statusLbl.setGraphic(readyIcon);
+            }
+        });
+    }
+
+    private void showDialog(final boolean oneSweepDone)
+    {
+        Platform.runLater(new Runnable()
+        {
+            @Override
+            public void run()
+            {
+                if( oneSweepDone )
+                {
+                    Alert alert = new Alert(Alert.AlertType.INFORMATION);
+                    alert.setTitle("Info");
+                    alert.setContentText("One round is done, please save the data");
+                    alert.showAndWait();
+                }
+            }
+        });
+    }
+
+    private void showRelaxDataConfirmation()
+    {
+        Platform.runLater(new Runnable()
+        {
+            @Override
+            public void run()
+            {
+                Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+                alert.setTitle("Relax Data");
+                alert.setContentText("Record Relax Data?");
+                Optional<ButtonType> result = alert.showAndWait();
+                if( result.get() == ButtonType.OK )
+                {
+                    gatherRelaxData();
+                }
+            }
+        });
+    }
+
+    private void gatherRelaxData()
+    {
         new Thread(new Runnable()
         {
             @Override
@@ -418,10 +555,7 @@ public class DataCollectionScreen extends GridPane implements EventHandler<Actio
                 try
                 {
                     trackFixedSample = 0;
-                    Thread.sleep(1000);
                     changeIcon(readyIcon, "relax");
-                    Thread.sleep(1000);
-                    changeIcon(readyIcon, "3");
                     Thread.sleep(1000);
                     changeIcon(readyIcon, "2");
                     Thread.sleep(1000);
@@ -445,36 +579,20 @@ public class DataCollectionScreen extends GridPane implements EventHandler<Actio
         }).start();
     }
 
-    private void changeIcon(final ImageView readyIcon,final String status)
+    @Override
+    public void onPPGDataAvailable(int ppg)
     {
-        Platform.runLater(new Runnable()
+        avg = movingAvgClass.calculateAvg(ppg);
+        grad = movingGradientClass.calculateGrad((float)avg);
+
+        if(write)
         {
-            @Override
-            public void run()
-            {
-                relaxStatusLbl.setText(status);
-                statusLbl.setGraphic(readyIcon);
-            }
-        });
+            ppgBuffer.append(grad);
+            ppgBuffer.append(objectName);
+            ppgBuffer.append("\n");
+        }
     }
 
-    private void showDialog(final boolean oneSweepDone)
-    {
-        Platform.runLater(new Runnable()
-        {
-            @Override
-            public void run()
-            {
-                if(oneSweepDone)
-                {
-                    Alert alert = new Alert(Alert.AlertType.INFORMATION);
-                    alert.setTitle("Info");
-                    alert.setContentText("One round is done, please save the data");
-                    alert.showAndWait();
-                }
-            }
-        });
-    }
 
     @Override
     public void onDataAvailable(int deviceId, String s)
@@ -484,26 +602,28 @@ public class DataCollectionScreen extends GridPane implements EventHandler<Actio
         String realtiveAngles = "";
         String relativeQuarts = "";
         String line = setAngles(deviceId, s);
-        if(( line!= null) && write)
+        if( (line != null) && write )
         {
             calculateRelativePositions();
             rawAngles = Arrays.deepToString(rawAnglesAry).replace("[", "").replace("]", "");
-            realtiveAngles = Arrays.deepToString(relativeAnglesAry).replace("[", "").replace("]", "") ;
-            rawQuarts = Arrays.deepToString(rawQuaternionsAry).replace("[", "").replace("]", "") ;
-            relativeQuarts = Arrays.deepToString(relativeQuaternionsAry).replace("[", "").replace("]", "") ;
+//            realtiveAngles = Arrays.deepToString(relativeAnglesAry).replace("[", "").replace("]", "");
+            rawQuarts = Arrays.deepToString(rawQuaternionsAry).replace("[", "").replace("]", "");
+//            relativeQuarts = Arrays.deepToString(relativeQuaternionsAry).replace("[", "").replace("]", "");
+
+//            calculateAngle(rawQuaternionsAry[0], rawQuaternionsAry[4]);
 
             if( fixedSampleSize == 0 )
             {
-                updateDataOnUI(relativeQuarts);
-                writeToBuffer(line, rawAngles, rawQuarts, realtiveAngles);
+                updateDataOnUI(rawAngles);
+                writeToBuffer(line, rawAngles, rawQuarts, relativeQuarts);
             }
             else if( (fixedSampleSize > 0 && trackFixedSample < fixedSampleSize) )
             {
                 trackFixedSample++;
-                updateDataOnUI(relativeQuarts);
-                writeToBuffer(line, rawAngles, rawQuarts, realtiveAngles);
+                updateDataOnUI(rawAngles);
+                writeToBuffer(line, rawAngles, rawQuarts, relativeQuarts);
             }
-            else if(fixedSampleSize > 0 && trackFixedSample == fixedSampleSize)
+            else if( fixedSampleSize > 0 && trackFixedSample == fixedSampleSize )
             {
                 stopRecording();
             }
@@ -521,23 +641,40 @@ public class DataCollectionScreen extends GridPane implements EventHandler<Actio
 //                relativeAngBufferList.add(relativeAngBuffer);
 //            }
 
-            if(anglePredict)
+            if( anglePredict )
             {
                 realtimeClassifier.classifyAngles(relativeAnglesAry);
             }
-            else if(quatPredict)
+            else if( quatPredict )
             {
                 realtimeClassifier.classifyQuat(relativeQuaternionsAry);
             }
 
-            LOGGER.info(rawAngles);
+//            LOGGER.info(rawAngles);
         }
+    }
+
+    double p1, p2, p3, p4, s;
+
+    private void calculateAngle(double[] a, double b[])
+    {
+        a[1] = -a[1];
+        a[2] = -a[2];
+        a[3] = -a[3];
+
+        p1 = a[0]*b[0] - a[1]*b[1] - a[2]*b[2] - a[3]*b[3];
+        p2 = a[1]*b[0] + a[0]*b[1] + a[2]*b[3] - a[3]*b[2];
+        p3 = a[2]*b[0] + a[0]*b[2] + a[3]*b[1] - a[1]*b[3];
+        p4 = a[3]*b[0] + a[0]*b[3] + a[1]*b[2] - a[2]*b[1];
+
+        s = Math.sqrt(p2*p2 + p3*p3 + p4*p4);
+        System.out.println(2*Math.atan2(s,p1));
     }
 
     private void writeToBuffer(String line, String rawAngles, String rawQuarts, String realtiveAngles)
     {
         rawBuffer.append(line);
-        rawBuffer.append(rawAngles);
+//        rawBuffer.append(rawAngles);
         rawBuffer.append(objectName);
         rawBuffer.append("\n");
 
@@ -545,9 +682,9 @@ public class DataCollectionScreen extends GridPane implements EventHandler<Actio
         quartBuffer.append(objectName);
         quartBuffer.append("\n");
 
-        relativeAngBuffer.append(realtiveAngles);
-        relativeAngBuffer.append(objectName);
-        relativeAngBuffer.append("\n");
+//        relativeAngBuffer.append(realtiveAngles);
+//        relativeAngBuffer.append(objectName);
+//        relativeAngBuffer.append("\n");
     }
 
     private String setAngles(int deviceId, String line)
@@ -558,67 +695,87 @@ public class DataCollectionScreen extends GridPane implements EventHandler<Actio
         AngleResult angles = null;
         StringBuffer dataLine = new StringBuffer();
 
-        for( String reading : line.split("#", 6))
+        for( String reading : line.split("#", 6) )
         {
             data = Arrays.stream(reading.split(",")).mapToDouble(Double::parseDouble).toArray();
-            device = (int)data[0];
-            dataLine.append(data[1]+","+data[2]+","+data[3]+","+data[4]+","+data[5]+","+data[6]+","+data[7]+","+data[8]+","+data[9]+"#");
+            device = ( int ) data[0];
+
+//            dataLine.append(data[1] + "," + data[2] + "," + data[3] /*+ "," + data[4] + "," + data[5] + "," + data[6] + "," + data[7] + "," + data[8] + "," + data[9] + "#"*/);
 
             switch( device )
             {
                 case 1:
                     angles = calculators[0].calculateQuaternions(data[1], data[2], data[3], data[4], data[5], data[6], data[7], data[8], data[9]);
-                    if(angles != null)
+                    if( angles != null )
                     {
                         rawAnglesAry[0] = angles.getAngles();
                         rawQuaternionsAry[0] = angles.getQuarternions();
+                        dataLine.append(data[1] + "," + data[2] + "," + data[3]);
                     }
-                    else success = false;
+                    else
+                    {
+                        success = false;
+                    }
                     break;
                 case 2:
                     angles = calculators[1].calculateQuaternions(data[1], data[2], data[3], data[4], data[5], data[6], data[7], data[8], data[9]);
-                    if(angles != null)
+                    if( angles != null )
                     {
                         rawAnglesAry[1] = angles.getAngles();
                         rawQuaternionsAry[1] = angles.getQuarternions();
                     }
-                    else success = false;
+                    else
+                    {
+                        success = false;
+                    }
                     break;
                 case 3:
                     angles = calculators[2].calculateQuaternions(data[1], data[2], data[3], data[4], data[5], data[6], data[7], data[8], data[9]);
-                    if(angles != null)
+                    if( angles != null )
                     {
                         rawAnglesAry[2] = angles.getAngles();
                         rawQuaternionsAry[2] = angles.getQuarternions();
                     }
-                    else success = false;
+                    else
+                    {
+                        success = false;
+                    }
                     break;
                 case 4:
                     angles = calculators[3].calculateQuaternions(data[1], data[2], data[3], data[4], data[5], data[6], data[7], data[8], data[9]);
-                    if(angles != null)
+                    if( angles != null )
                     {
                         rawAnglesAry[3] = angles.getAngles();
                         rawQuaternionsAry[3] = angles.getQuarternions();
                     }
-                    else success = false;
+                    else
+                    {
+                        success = false;
+                    }
                     break;
                 case 5:
                     angles = calculators[4].calculateQuaternions(data[1], data[2], data[3], data[4], data[5], data[6], data[7], data[8], data[9]);
-                    if(angles != null)
+                    if( angles != null )
                     {
                         rawAnglesAry[4] = angles.getAngles();
                         rawQuaternionsAry[4] = angles.getQuarternions();
                     }
-                    else success = false;
+                    else
+                    {
+                        success = false;
+                    }
                     break;
                 case 6:
                     angles = calculators[5].calculateQuaternions(data[1], data[2], data[3], data[4], data[5], data[6], data[7], data[8], data[9]);
-                    if(angles != null)
+                    if( angles != null )
                     {
                         rawAnglesAry[5] = angles.getAngles();
                         rawQuaternionsAry[5] = angles.getQuarternions();
                     }
-                    else success = false;
+                    else
+                    {
+                        success = false;
+                    }
                     break;
                 default:
                     success = false;
@@ -632,27 +789,27 @@ public class DataCollectionScreen extends GridPane implements EventHandler<Actio
     private void calculateRelativePositions()
     {
         double[] palm = rawAnglesAry[0];
-        for(int i=1; i<6; i++)
+        for( int i = 1; i < 6; i++ )
         {
-            relativeAnglesAry[i-1][0] = Double.valueOf(df.format(rawAnglesAry[i][0] - palm[0]));
-            relativeAnglesAry[i-1][1] = Double.valueOf(df.format(rawAnglesAry[i][1] - palm[1]));
-            relativeAnglesAry[i-1][2] = Double.valueOf(df.format(rawAnglesAry[i][2] - palm[2]));
+            relativeAnglesAry[i - 1][0] = Double.valueOf(df.format(rawAnglesAry[i][0] - palm[0]));
+            relativeAnglesAry[i - 1][1] = Double.valueOf(df.format(rawAnglesAry[i][1] - palm[1]));
+            relativeAnglesAry[i - 1][2] = Double.valueOf(df.format(rawAnglesAry[i][2] - palm[2]));
         }
 
-        double[] B = rawQuaternionsAry[0];
-        B[1] = -B[1];
-        B[2] = -B[2];
-        B[3] = -B[3];
-
-        double[] A = null;
-        for(int i=1; i<6; i++)
-        {
-            A = rawQuaternionsAry[i];
-            relativeQuaternionsAry[i-1][0] = Double.valueOf(df2.format(A[0] * B[0] - A[1] * B[1] - A[2] * B[2] - A[3] * B[3]));
-            relativeQuaternionsAry[i-1][1] = Double.valueOf(df2.format(A[0] * B[1] + A[1] * B[0] + A[2] * B[3] - A[3] * B[2]));
-            relativeQuaternionsAry[i-1][2] = Double.valueOf(df2.format(A[0] * B[2] - A[1] * B[3] + A[2] * B[0] + A[3] * B[1]));
-            relativeQuaternionsAry[i-1][3] = Double.valueOf(df2.format(A[0] * B[3] + A[1] * B[2] - A[2] * B[1] + A[3] * B[0]));
-        }
+//        double[] B = rawQuaternionsAry[0];
+//        B[1] = -B[1];
+//        B[2] = -B[2];
+//        B[3] = -B[3];
+//
+//        double[] A = null;
+//        for( int i = 1; i < 6; i++ )
+//        {
+//            A = rawQuaternionsAry[i];
+//            relativeQuaternionsAry[i - 1][0] = Double.valueOf(df2.format(A[0] * B[0] - A[1] * B[1] - A[2] * B[2] - A[3] * B[3]));
+//            relativeQuaternionsAry[i - 1][1] = Double.valueOf(df2.format(A[0] * B[1] + A[1] * B[0] + A[2] * B[3] - A[3] * B[2]));
+//            relativeQuaternionsAry[i - 1][2] = Double.valueOf(df2.format(A[0] * B[2] - A[1] * B[3] + A[2] * B[0] + A[3] * B[1]));
+//            relativeQuaternionsAry[i - 1][3] = Double.valueOf(df2.format(A[0] * B[3] + A[1] * B[2] - A[2] * B[1] + A[3] * B[0]));
+//        }
     }
 
     private void updateDataOnUI(final String s)
@@ -663,7 +820,7 @@ public class DataCollectionScreen extends GridPane implements EventHandler<Actio
                               logsTxt.appendText(s + objectName + "\n");
                               sampleCntAmtLbl.setText("" + totalSampleCount);
                               totalPrintedLines++;
-                              if(totalPrintedLines%2000 == 0)
+                              if( totalPrintedLines % 2000 == 0 )
                               {
                                   addToList = true;
                               }
@@ -682,7 +839,7 @@ public class DataCollectionScreen extends GridPane implements EventHandler<Actio
     private void writeToFile()
     {
         String fileName = userNameTxt.getText().trim();
-        if(fileName.isEmpty())
+        if( fileName.isEmpty() )
         {
             Alert alert = new Alert(Alert.AlertType.WARNING);
             alert.setTitle("Warning");
@@ -693,7 +850,7 @@ public class DataCollectionScreen extends GridPane implements EventHandler<Actio
         }
 
         File file = new File(userNameTxt.getText() + ".arff");
-        if(file.exists())
+        if( file.exists() )
         {
             Alert alert = new Alert(Alert.AlertType.WARNING);
             alert.setTitle("Warning");
@@ -705,6 +862,7 @@ public class DataCollectionScreen extends GridPane implements EventHandler<Actio
 
         rawBufferList.add(rawBuffer);
         quatBufferList.add(quartBuffer);
+        ppgBufferList.add(ppgBuffer);
         relativeAngBufferList.add(relativeAngBuffer);
 
         ATTRIBUTES_CLASS += objectList.toString().replace("[", "").replace("]", "") + "}";
@@ -754,7 +912,6 @@ public class DataCollectionScreen extends GridPane implements EventHandler<Actio
             e.printStackTrace();
         }
 
-
         try( Writer fileWriter = new FileWriter(userNameTxt.getText() + "_quart.arff") )
         {
             quatBufferList.forEach(buffer -> {
@@ -774,24 +931,45 @@ public class DataCollectionScreen extends GridPane implements EventHandler<Actio
             e.printStackTrace();
         }
 
-
-        try( Writer fileWriter = new FileWriter(userNameTxt.getText() + "_relative_angle.arff") )
-        {
-            relativeAngBufferList.forEach(buffer -> {
-                try
-                {
-                    fileWriter.write(buffer.toString());
-                }
-                catch( IOException e )
-                {
-                    e.printStackTrace();
-                }
-            });
-            System.out.println("******** relative angle data written ********");
-        }
-        catch( IOException e )
-        {
-            e.printStackTrace();
-        }
+//
+//        try( Writer fileWriter = new FileWriter(userNameTxt.getText() + "_relative_quat.arff") )
+//        {
+//            relativeAngBufferList.forEach(buffer -> {
+//                try
+//                {
+//                    fileWriter.write(buffer.toString());
+//                }
+//                catch( IOException e )
+//                {
+//                    e.printStackTrace();
+//                }
+//            });
+//            System.out.println("******** relative angle data written ********");
+//        }
+//        catch( IOException e )
+//        {
+//            e.printStackTrace();
+//        }
+//
+//
+//        try( Writer fileWriter = new FileWriter(userNameTxt.getText() + "_ppg.arff") )
+//        {
+//            ppgBufferList.forEach(buffer -> {
+//                try
+//                {
+//                    fileWriter.write(buffer.toString());
+//                }
+//                catch( IOException e )
+//                {
+//                    e.printStackTrace();
+//                }
+//            });
+//            System.out.println("******** ppg data written ********");
+//        }
+//        catch( IOException e )
+//        {
+//            e.printStackTrace();
+//        }
     }
+
 }

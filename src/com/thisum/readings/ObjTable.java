@@ -12,9 +12,7 @@ import org.json.simple.parser.ParseException;
 
 import java.io.FileReader;
 import java.io.IOException;
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.Random;
+import java.util.*;
 
 /**
  * Created by thisum_kankanamge on 4/9/18.
@@ -23,6 +21,7 @@ public class ObjTable
 {
     private TableView table = new TableView();
     private final ObservableList<RowObj> dataList = FXCollections.observableArrayList();
+    private List<RowObj> rowObjList = new ArrayList<>();
 
     public ObjTable()
     {
@@ -61,15 +60,24 @@ public class ObjTable
             Iterator iti = jsonArray.iterator();
             while( iti.hasNext() )
             {
-                dataList.add(new RowObj(String.valueOf(iti.next())));
+                rowObjList.add(new RowObj(String.valueOf(iti.next())));
             }
-            Collections.shuffle(dataList, new Random(12000));
+            dataList.addAll(rowObjList);
+            Collections.shuffle(dataList, new Random(12200));
         }
         catch( ParseException | IOException e )
         {
             e.printStackTrace();
         }
 
+    }
+
+    public void shuffleList(int i)
+    {
+        dataList.clear();
+        dataList.addAll(rowObjList);
+        Collections.shuffle(dataList, new Random(12000 + (i*200)));
+        table.refresh();
     }
 
     public String updateStatus(int i)

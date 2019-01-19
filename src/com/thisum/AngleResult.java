@@ -4,7 +4,7 @@ import java.text.DecimalFormat;
 
 public class AngleResult
 {
-    private DecimalFormat df = new DecimalFormat("#.##");
+    private DecimalFormat df = new DecimalFormat("#.####");
 
     private double yaw;
     private double pitch;
